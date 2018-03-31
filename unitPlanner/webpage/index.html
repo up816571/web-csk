@@ -1,0 +1,169 @@
+<!doctype html>
+<head>
+  <title>Unit Planner</title>
+  <meta charset="utf-8">
+  <script defer src="https://use.fontawesome.com/releases/v5.0.8/js/solid.js" integrity="sha384-+Ga2s7YBbhOD6nie0DzrZpJes+b2K1xkpKxTFFcx59QmVPaSA8c7pycsNaFwUK6l" crossorigin="anonymous"></script>
+  <script defer src="https://use.fontawesome.com/releases/v5.0.8/js/fontawesome.js" integrity="sha384-7ox8Q2yzO/uWircfojVuCQOZl+ZZBg2D2J5nkpLqzH1HY0C1dHlTKIbpRz/LG23c" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="styles/main.css">
+  <script src="client.js"></script>
+  <meta name="google-signin-client_id" content="428194716118-ea261sj658deb5gq406lr1e14c8u8sh2.apps.googleusercontent.com">
+</head>
+<body>
+  <div id="contentHolder"></div>
+  <template id="login-page">
+    <div id="login-box">
+      <h1>Unit Planner</h1>
+      <p>Please sign in to access your account</p>
+      <div class="g-signin2" data-onsuccess="onSignIn"></div>
+      <script src="https://apis.google.com/js/platform.js" async defer></script>
+    </div>
+  </template>
+  <template id="main-page">
+    <header>
+      <div id="center-nav">
+        <h1>Unit Planner</h1>
+        <div id="sign-out">
+          <a href="#" onclick="signOut();">Sign out</a>
+        </div>
+      </div>
+    </header>
+    <section id="units">
+      <h3>Units:</h3>
+      <button id="add_unit">Add unit</button>
+      <div id="add_unit_popup" class="popup">
+        <div class="pop_up_content">
+          <span class="close-button close_pop_up">&times;</span>
+          <h2>Add a unit</h2>
+          <form>
+            <input type="text" id="title-input" required placeholder="Shortcode" maxlength="20">
+            <input type="text" id="full-title-input" placeholder="Full unit name" required maxlength="100">
+          </form>
+          <button type="button" id="submit-button">Submit</button>
+          <div id="error-appender-add"></div>
+        </div>
+      </div>
+      <div id="edit_unit_popup" class="popup">
+        <div class="pop_up_content">
+          <span class="close-button close_pop_up">&times;</span>
+          <h2>Edit a unit</h2>
+          <form>
+            <input type="text" id="title-unit-input" required maxlength="20">
+            <input type="text" id="full-title-unit-input" required maxlength="100">
+          </form>
+          <button type="button" id="save-button">Save</button>
+          <span id="delete-unit-button"><i class="fa fa-trash-alt"></i></span>
+          <div id="error-appender-edit"></div>
+          <template id="delete-warning">
+            <section class="delete-section">
+              <p>Are you sure you want to delete this unit, this cannot be undone</p>
+              <button id="cancel-delete">Cancel</button>
+              <button id="confirm-delete">Confirm</button>
+            </section>
+          </template>
+        </div>
+      </div>
+      <section id="card-display">
+        <div id="card-holder"></div>
+        <template id="unit-card">
+          <div class="unit noselect">
+            <h2 class="title"></h2>
+            <span class="edit-unit"><i class="fa fa-edit"></i></span>
+          </div>
+        </template>
+      </section>
+      <div id="main-content" class="hidden">
+        <h2 id="unit-titles"></h2>
+        <div id="objectives">
+          <h3>Objectives: </h3>
+          <span id="add-obj"><i class="fa fa-plus"></i></span>
+          <div id="remove-obj-filter" class="hidden">
+            <h3 class="objective-title">Remove filter</h3>
+          </div>
+          <div id="add-a-objective" class="hidden">
+            <form id="add-objective-form">
+              <input type="text" placeholder="Objective" id="objective-title-input" required maxlength="400">
+            </form>
+            <button id="save-obj-button">Save</button>
+            <button id="cancel-obj-button">Cancel</button>
+          </div>
+          <div id="objective-holder"></div>
+          <template id="objective-temp">
+            <div class="objective noselect" draggable="true">
+              <h3 class="objective-title"></h3>
+              <span class="delete-obj-link hidden">&times;</span>
+            </div>
+          </template>
+        </div>
+        <section id="week-display">
+          <h3 class="noselect">Weeks</h3>
+          <span id="add-week"><i class="fa fa-plus"></i></span>
+          <div id="week-holder"></div>
+          <template id="week-card">
+            <div class="week noselect droptarget">
+              <h3 class="title"></h3>
+            </div>
+          </template>
+          <div id="add-a-week" class="hidden">
+            <div class="week-inputs noselect">
+              <form id="add-week-form">
+                <input type="text" placeholder="Week title" id="week-title-input" required maxlength="20">
+                <input type="number" placeholder="Week num" min="1" id="week-num-input" required>
+              </form>
+              <button id="save-week-button">Save</button>
+              <button id="cancel-week-button">Cancel</button>
+            </div>
+          </div>
+        </section>
+        <div id="weeks-content-holder"></div>
+        <template id="weeks-main-content">
+          <section id="topic-display">
+            <h3>Topics</h3>
+            <span id="add-topic"><i class="fa fa-plus"></i></span>
+            <div id="topic-holder"></div>
+            <template id="topic-card">
+              <div class="topic noselect">
+                <h3 class="title"></h3>
+              </div>
+            </template>
+            <div id="add-a-topic" class="hidden">
+              <div class="topic-inputs noselect">
+                <form id="add-topic-form">
+                  <input type="text" placeholder="Topic" id="topic-title-input" required maxlength="20">
+                </form>
+                <button id="save-topic-button">Save</button>
+                <button id="cancel-topic-button">Cancel</button>
+              </div>
+            </div>
+          </section>
+          <section id="notes-display">
+            <h3>Notes</h3>
+            <div class="notes noselect">
+              <textarea id="notes-text-area"></textarea>
+              <button id="save-notes-button">Save</button>
+            </div>
+          </section>
+          <section id="resources-display">
+            <h3>Resources</h3>
+            <span id="add-resource"><i class="fa fa-plus"></i></span>
+            <div id="resource-holder"></div>
+            <template id="resource-card">
+              <div class="resource noselect">
+                <h3 class="title"></h3>
+              </div>
+            </template>
+            <div id="add-a-resource" class="hidden">
+              <div class="resource-inputs noselect">
+                <form id="add-resource-form">
+                  <input type="text" placeholder="Resource" id="resource-title-input" required maxlength="200">
+                </form>
+                <button id="save-resource-button">Save</button>
+                <button id="cancel-resource-button">Cancel</button>
+              </div>
+            </div>
+          </section>
+        </template>
+      </div>
+    </section>
+  </template>
+</body>
+</html>

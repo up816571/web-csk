@@ -1,0 +1,17 @@
+{
+  "name": "unitplanner",
+  "version": "1.0.0",
+  "description": "unit planner",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "initsql": "mysql -u root -p < createdb.sql"
+  },
+  "author": "up816571",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.2",
+    "mysql2": "^1.5.2",
+    "simple-google-openid": "^0.2.2"
+  }
+}
