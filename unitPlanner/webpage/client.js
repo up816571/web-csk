@@ -2,9 +2,10 @@
 
 window.addEventListener('load', initialize);
 
-let currentID;
 let currentUnit;
 let currentWeek;
+let isSelected = false;
+let beingDeleted = false;
 
 
 function initialize() {
@@ -148,10 +149,10 @@ async function editUnit(e) {
   document.getElementById('delete-unit-button').addEventListener('click', deleteUnit);
 
   const el = getWrapper(e.target);
-  currentID = el.dataset.id;
+  currentUnit = el.dataset.id;
 
   let url = '/data/units/single/';
-  url += '?unitid=' + currentID;
+  url += '?unitid=' + currentUnit;
 
   const response = await fetch(url, fetchOptions);
   if (!response.ok) {
@@ -190,7 +191,7 @@ async function saveUnit() {
   let url = '/data/units/edit/';
   url += '?title=' + encodeURIComponent(titleEl.value);
   url += '&full=' + encodeURIComponent(fullEl.value);
-  url += '&unitid=' + encodeURIComponent(currentID);
+  url += '&unitid=' + encodeURIComponent(currentUnit);
   const response = await fetch(url, fetchOptions);
 
   if (!response.ok) {
@@ -221,7 +222,7 @@ async function confimredDelete() {
 
   let url = '/data/units/';
 
-  url += '?unitid=' + encodeURIComponent(currentID);
+  url += '?unitid=' + encodeURIComponent(currentUnit);
 
   const response = await fetch(url, fetchOptions);
   if (!response.ok) {
@@ -255,8 +256,7 @@ function getObjWrapper(el) {
 
 async function displayUnitInfo(e) {
   const el = getWrapper(e.target);
-  const id = el.dataset.id;
-  currentUnit = id;
+  currentUnit = el.dataset.id;
   document.getElementById('main-content').classList.remove("hidden");
   blankWeekContent();
   getUnitFullName();
@@ -265,6 +265,7 @@ async function displayUnitInfo(e) {
   let units = document.querySelectorAll(".unit");
   units.forEach((unit) => {unit.classList.remove("highlighted");});
   el.classList.add("highlighted");
+  isSelected = false;
   displayWeeks();
   displayObjectives();
 }
@@ -333,13 +334,12 @@ async function saveWeek() {
 
   const weekTitleEl = document.getElementById('week-title-input');
   const numEl = document.getElementById('week-num-input');
-  if (!weekTitleEl.checkValidity() || !numEl.checkValidity()) {
+  if (!weekTitleEl.checkValidity()) {
     return;
   }
 
   let url = '/data/weeks/';
   url += '?title=' + encodeURIComponent(weekTitleEl.value);
-  url += '&num=' + encodeURIComponent(numEl.value);
   url += '&unitid=' + encodeURIComponent(currentUnit);
   const response = await fetch(url, fetchOptions);
 
@@ -350,79 +350,83 @@ async function saveWeek() {
 
   document.getElementById('add-a-week').classList.add('hidden');
   document.getElementById('add-week-form').reset();
+  isSelected = false;
   displayWeeks();
 }
 
 async function displayWeekInfo() {
-  const weekContentHolderEl = document.getElementById('weeks-content-holder');
-  weekContentHolderEl.innerHTML = "";
-  const weekContentTemplateEl = document.getElementById('weeks-main-content').content.cloneNode(true);
-  weekContentHolderEl.appendChild(weekContentTemplateEl);
+  if (!beingDeleted) {
+    isSelected = true;
+    const weekContentHolderEl = document.getElementById('weeks-content-holder');
+    weekContentHolderEl.innerHTML = "";
+    const weekContentTemplateEl = document.getElementById('weeks-main-content').content.cloneNode(true);
+    weekContentHolderEl.appendChild(weekContentTemplateEl);
 
-  let weeks = document.querySelectorAll(".week");
-  if (typeof this != "undefined") {
-    weeks.forEach((week) => {week.classList.remove("highlighted");});
-    this.classList.add("highlighted");
-    currentWeek = this.dataset.weekid;
+    let weeks = document.querySelectorAll(".week");
+    if (typeof this != "undefined") {
+      weeks.forEach((week) => {week.classList.remove("highlighted");});
+      this.classList.add("highlighted");
+      currentWeek = this.dataset.weekid;
+    }
+
+    const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+    const fetchOptions = {
+      method: 'GET',
+      headers: {'Authorization': 'Bearer ' + token}
+    };
+
+    let url = '/data/weeks/week/';
+    url += '?weekid=' + currentWeek;
+
+    const response = await fetch(url, fetchOptions);
+    if (!response.ok) {
+      console.log(response.status);
+      return;
+    }
+
+    const data = await response.json();
+    let topics = JSON.parse(data.topics);
+    let resources = JSON.parse(data.resources);
+
+    document.getElementById('add-topic').addEventListener('click', function() {addTopic(topics);});
+    document.getElementById('save-notes-button').addEventListener('click', saveNotes);
+    document.getElementById('add-resource').addEventListener('click', function() {addResource(resources);});
+    document.getElementById('notes-text-area').value = data.notes;
+
+    const topicHolder = document.getElementById('topic-holder');
+    topicHolder.innerHTML = "";
+    if (topics != null) {
+      topics.forEach((topic) => {
+        const topicTemplateEl = document.getElementById('topic-card').content.cloneNode(true);
+        topicTemplateEl.querySelector('.title').textContent = topic;
+        topicHolder.appendChild(topicTemplateEl);
+      });
+    } else {
+      topicHolder.innerHTML = "<h3>No topics</h3>";
+    }
+
+    //https://stackoverflow.com/questions/5717093/check-if-a-javascript-string-is-a-url?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+    //Source of regEx url checking code
+    let pattern = new RegExp('^(https?:\\/\\/)?'+ '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ '((\\d{1,3}\\.){3}\\d{1,3}))'+ '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ '(\\?[;&a-z\d%_.~+=-]*)?'+ '(\\#[-a-z\d_]*)?$','i');
+
+    const resourceHolder = document.getElementById('resource-holder');
+    resourceHolder.innerHTML = "";
+    if (resources != null) {
+      resources.forEach((resource) => {
+        let linkedResource = resource;
+        if (pattern.test(resource)) {
+          linkedResource = "<a href=\"" + resource + "\">" + resource + "</a>";
+        }
+        const resourceTemplateEl = document.getElementById('resource-card').content.cloneNode(true);
+        resourceTemplateEl.querySelector('.title').innerHTML = linkedResource;
+        resourceHolder.appendChild(resourceTemplateEl);
+      });
+    } else {
+      resourceHolder.innerHTML = "<h3>No resources</h3>";
+    }
+    showDependencies();
   }
-
-  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
-  const fetchOptions = {
-    method: 'GET',
-    headers: {'Authorization': 'Bearer ' + token}
-  };
-
-  let url = '/data/weeks/week/';
-  url += '?weekid=' + currentWeek;
-
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok) {
-    console.log(response.status);
-    return;
-  }
-
-  const data = await response.json();
-  let topics = JSON.parse(data.topics);
-  let resources = JSON.parse(data.resources);
-
-  document.getElementById('add-topic').addEventListener('click', function() {addTopic(topics);});
-  document.getElementById('save-notes-button').addEventListener('click', saveNotes);
-  document.getElementById('add-resource').addEventListener('click', function() {addResource(resources);});
-
-  document.getElementById('notes-text-area').value = data.notes;
-
-  const topicHolder = document.getElementById('topic-holder');
-  topicHolder.innerHTML = "";
-  if (topics != null) {
-    topics.forEach((topic) => {
-      const topicTemplateEl = document.getElementById('topic-card').content.cloneNode(true);
-      topicTemplateEl.querySelector('.title').textContent = topic;
-      topicHolder.appendChild(topicTemplateEl);
-    });
-  } else {
-    topicHolder.innerHTML = "<h3>No topics</h3>";
-  }
-
-  //https://stackoverflow.com/questions/5717093/check-if-a-javascript-string-is-a-url?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
-  //Source of regEx url checking code
-  let pattern = new RegExp('^(https?:\\/\\/)?'+ '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ '((\\d{1,3}\\.){3}\\d{1,3}))'+ '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ '(\\?[;&a-z\d%_.~+=-]*)?'+ '(\\#[-a-z\d_]*)?$','i');
-
-  const resourceHolder = document.getElementById('resource-holder');
-  resourceHolder.innerHTML = "";
-  if (resources != null) {
-    resources.forEach((resource) => {
-      let linkedResource = resource;
-      if (pattern.test(resource)) {
-        linkedResource = "<a href=\"" + resource + "\">" + resource + "</a>";
-      }
-      const resourceTemplateEl = document.getElementById('resource-card').content.cloneNode(true);
-      resourceTemplateEl.querySelector('.title').innerHTML = linkedResource;
-      resourceHolder.appendChild(resourceTemplateEl);
-    });
-  } else {
-    resourceHolder.innerHTML = "<h3>No resources</h3>";
-  }
-  showDependencies();
+  beingDeleted = false;
 }
 
 async function saveNotes() {
@@ -572,14 +576,37 @@ async function displayObjectives() {
   let objectives = document.querySelectorAll('.objective');
   objectives.forEach((obj) => {
     obj.addEventListener('click', function() {
-      if (event.target != this.childNodes[3]) {
-        displayGroupWeeks(event);
-      } else {
+      if (event.target == this.childNodes[3]) {
         displayWeekInfo();
+      } else if (event.target == this.childNodes[5]){
+        removeObj();
+      } else {
+        displayGroupWeeks(event);
       }
     });
     obj.addEventListener('dragstart', function() {initDrag(event);});
   });
+}
+
+async function removeObj() {
+  const el = getObjWrapper(event.target);
+  const objid = el.dataset.objid;
+  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+  const fetchOptions = {
+    method: 'DELETE',
+    headers: {'Authorization': 'Bearer ' + token}
+  };
+
+  let url = '/data/objectives/';
+  url += '?objid=' + encodeURIComponent(objid);
+  url += '&unitid=' + encodeURIComponent(currentUnit);
+
+  const response = await fetch(url, fetchOptions);
+  if (!response.ok) {
+    console.log(response.status);
+    return;
+  }
+  displayObjectives();
 }
 
 async function addObject() {
@@ -654,40 +681,42 @@ async function saveObjLink(event) {
 }
 
 async function showDependencies() {
-  //await displayObjectives(); temp fix bad
-  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
-  const fetchOptions = {
-    method: 'GET',
-    headers: {'Authorization': 'Bearer ' + token}
-  };
+  if (isSelected && !beingDeleted) {
+    const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+    const fetchOptions = {
+      method: 'GET',
+      headers: {'Authorization': 'Bearer ' + token}
+    };
 
-  let url = '/api/links';
-  url += '?weekid=' + currentWeek;
+    let url = '/api/links';
+    url += '?weekid=' + currentWeek;
 
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok) {
-    console.log(response.status);
-    return;
-  }
+    const response = await fetch(url, fetchOptions);
+    if (!response.ok) {
+      console.log(response.status);
+      return;
+    }
 
-  const data = await response.json();
+    const data = await response.json();
 
-  let objectives = document.querySelectorAll('.objective');
-  objectives.forEach((obj) => {
-    obj.classList.remove("highlighted");
-    obj.childNodes[3].classList.add("hidden");
-    data.forEach((ids) =>{
-      if (obj.dataset.objid == ids.objid) {
-        obj.classList.add("highlighted");
-        obj.childNodes[3].classList.remove("hidden");
-      }
+    let objectives = document.querySelectorAll('.objective');
+    objectives.forEach((obj) => {
+      obj.classList.remove("highlighted");
+      obj.childNodes[3].classList.add("hidden");
+      data.forEach((ids) =>{
+        if (obj.dataset.objid == ids.objid) {
+          obj.classList.add("highlighted");
+          obj.childNodes[3].classList.remove("hidden");
+        }
+      });
     });
-  });
 
-  let removeButtons = document.querySelectorAll('.delete-obj-link');
-  removeButtons.forEach((button) => {
-    button.addEventListener('click', function() {removeWeekObjLink(event)});
-  });
+    let removeButtons = document.querySelectorAll('.delete-obj-link');
+    removeButtons.forEach((button) => {
+      button.addEventListener('click', function() {removeWeekObjLink(event)});
+    });
+  }
+  beingDeleted = false;
 }
 
 async function removeWeekObjLink(event) {
@@ -713,6 +742,7 @@ async function removeWeekObjLink(event) {
 
 async function displayGroupWeeks(event) {
   cancelObject();
+  isSelected = false;
   const el = getObjWrapper(event.target);
   const objid = el.dataset.objid;
 
@@ -758,12 +788,40 @@ function displaySelectedWeeks(data) {
     weekHolderEl.appendChild(weekTemplateEl);
   });
 
+  let deleteWeeks = document.querySelectorAll(".delete-week-button");
+  deleteWeeks.forEach((button) => {
+    button.addEventListener('click', function() {removeWeek(event)});
+  });
+
   let allWeeks = document.querySelectorAll(".week");
   allWeeks.forEach((weeks) => {
     weeks.addEventListener('click', displayWeekInfo);
     weeks.addEventListener('dragover', allowDrop);
     weeks.addEventListener('drop', function() {saveObjLink(event);});
   });
+}
+
+async function removeWeek(event) {
+  beingDeleted = true;
+  const el = getWeekWrapper(event.target);
+  const weekid = el.dataset.weekid;
+  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+  const fetchOptions = {
+    method: 'DELETE',
+    headers: {'Authorization': 'Bearer ' + token}
+  };
+
+  let url = '/data/weeks/';
+  url += '?weekid=' + encodeURIComponent(weekid);
+  url += '&unitid=' + encodeURIComponent(currentUnit);
+
+  const response = await fetch(url, fetchOptions);
+  if (!response.ok) {
+    console.log(response.status);
+    return;
+  }
+  removeFilters();
+  displayWeeks();
 }
 
 //Helper functions
@@ -776,6 +834,7 @@ function removeObjectiveHighlight() {
 }
 
 function removeFilters() {
+  isSelected = false;
   blankWeekContent();
   removeObjectiveHighlight();
   document.getElementById('remove-obj-filter').classList.add('hidden');

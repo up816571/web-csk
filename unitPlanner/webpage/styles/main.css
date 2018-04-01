@@ -293,6 +293,21 @@ section > h3, section > span, #weeks-content-holder {
   resize: none;
 }
 
+.delete-week-button {
+  display: inline-block;
+  float: right;
+  margin-right: 1em;
+}
+
+.delete-week-button:hover {
+  color: red;
+}
+
+
+.week > h3 {
+  display: inline-block;
+}
+
 /* objectives */
 
 .objective {
@@ -355,6 +370,14 @@ section > h3, section > span, #weeks-content-holder {
 }
 
 .delete-obj-link:hover {
+  color: red;
+}
+
+.delete-obj-button {
+  margin-left: 2em;
+}
+
+.delete-obj-button:hover {
   color: red;
 }
 

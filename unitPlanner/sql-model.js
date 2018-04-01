@@ -131,7 +131,7 @@ async function addLinks(objid, weekid) {
   const sql = await init();
   const query = sql.format('SELECT * FROM weekstoobjectivies WHERE objid = ? AND weekid = ?', [objid, weekid]);
   const [links] = await sql.query(query);
-  if (links == null) {
+  if (links.length == 0) {
     const insertQuery = sql.format('INSERT INTO weekstoobjectivies (objid, weekid) VALUES ((SELECT objid FROM objectives WHERE objid = ?), (SELECT weekid FROM weeks WHERE weekid = ?));', [objid, weekid]);
     await sql.query(insertQuery);
   }
@@ -156,6 +156,31 @@ async function removeLink(objid, weekid) {
   await sql.query(deleteQuery);
 }
 
+async function removeWeek(unitid, weekid) {
+  const sql = await init();
+  const deleteQuery = sql.format('DELETE FROM weeks WHERE weekid = ? AND unitid = ?', [weekid, unitid]);
+  await sql.query(deleteQuery);
+}
+
+async function removeObjective(objid, unitid) {
+  const sql = await init();
+  const deleteQuery = sql.format('DELETE FROM objectives WHERE objid = ? AND unitid = ?', [objid, unitid]);
+  await sql.query(deleteQuery);
+}
+
+async function getWeekNums(unitid) {
+  const sql = await init();
+  const query = sql.format('SELECT weeknumber FROM weeks WHERE unitid = ? ORDER BY weeknumber', [unitid]);
+  const [weekNums] = await sql.query(query);
+  return weekNums;
+}
+
+async function updateWeekNums(unitid, weeknumber, newweek) {
+  const sql = await init();
+  const insertQuery = sql.format('UPDATE weeks SET weeknumber = ? WHERE weeknumber = ? AND unitid = ?', [newweek, weeknumber, unitid]);
+  await sql.query(insertQuery);
+}
+
 module.exports = {
   getUnit: getUnit,
   addUnit: addUnit,
@@ -175,4 +200,8 @@ module.exports = {
   getGroupedWeeks: getGroupedWeeks,
   addObjective: addObjective,
   removeLink: removeLink,
+  removeWeek: removeWeek,
+  removeObjective: removeObjective,
+  getWeekNums: getWeekNums,
+  updateWeekNums: updateWeekNums,
 };

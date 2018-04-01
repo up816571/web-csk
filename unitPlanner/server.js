@@ -36,6 +36,8 @@ app.post('/api/links', addLink);
 app.post('/data/objectives', addObjective);
 app.delete('/data/units', deleteUnit);
 app.delete('/api/links', deleteLink);
+app.delete('/data/weeks', deleteWeeks);
+app.delete('/data/objectives', deleteObjective);
 
 //server function
 
@@ -79,8 +81,12 @@ async function getUnitFullName(req, res) {
 async function addWeeks(req, res) {
   const unitID = req.query.unitid;
   const title = req.query.title;
-  const num = req.query.num;
-  res.send(await db.saveWeek(unitID, title, num));
+  let nums = await db.getWeekNums(unitID);
+  let nextWeek = 1;
+  if (nums.length != 0 ) {
+    nextWeek = nums.length + 1;
+  }
+  res.send(await db.saveWeek(unitID, title, nextWeek));
 }
 
 async function getWeekInfo(req, res) {
@@ -138,4 +144,37 @@ async function deleteLink(req, res) {
   const weekID = req.query.weekid;
   const objID = req.query.objid;
   res.send(await db.removeLink(objID, weekID));
+}
+
+async function deleteWeeks(req, res) {
+  const weekID = req.query.weekid;
+  const unitID = req.query.unitid;
+  res.send(await db.removeWeek(unitID, weekID));
+  let nums = await db.getWeekNums(unitID);
+  let previousNum = 0;
+  let jumpPos = [];
+  nums.forEach((number) => {
+    if (number.weeknumber != 1) {
+      if (number.weeknumber - 1 != previousNum) {
+        jumpPos.push(number);
+      }
+    }
+    previousNum += 1;
+  });
+
+  let newWeek = 1;
+  jumpPos.forEach(async (num) => {
+    if (num.weeknumber > 1) {
+      newWeek = num.weeknumber - 1;
+    } else {
+      newWeek = 1;
+    }
+    res.send(await db.updateWeekNums(unitID, num.weeknumber, newWeek));
+  });
+}
+
+async function deleteObjective(req ,res) {
+  const objID = req.query.objid;
+  const unitID = req.query.unitid;
+  res.send(await db.removeObjective(objID, unitID));
 }

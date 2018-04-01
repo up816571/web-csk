@@ -91,6 +91,7 @@
             <div class="objective noselect" draggable="true">
               <h3 class="objective-title"></h3>
               <span class="delete-obj-link hidden">&times;</span>
+              <span class="delete-obj-button">&times;</span>
             </div>
           </template>
         </div>
@@ -99,15 +100,15 @@
           <span id="add-week"><i class="fa fa-plus"></i></span>
           <div id="week-holder"></div>
           <template id="week-card">
-            <div class="week noselect droptarget">
+            <div class="week noselect">
               <h3 class="title"></h3>
+              <span class="delete-week-button">&times;</span>
             </div>
           </template>
           <div id="add-a-week" class="hidden">
             <div class="week-inputs noselect">
               <form id="add-week-form">
                 <input type="text" placeholder="Week title" id="week-title-input" required maxlength="20">
-                <input type="number" placeholder="Week num" min="1" id="week-num-input" required>
               </form>
               <button id="save-week-button">Save</button>
               <button id="cancel-week-button">Cancel</button>
