@@ -6,7 +6,7 @@ USE plannerdb;
 CREATE TABLE IF NOT EXISTS units (
   unitid INT PRIMARY KEY AUTO_INCREMENT,
   unitname VARCHAR(20),
-  unitfullname varchar(100),
+  unitfullname VARCHAR(100),
   userid VARCHAR(50)
 );
 
@@ -36,6 +36,20 @@ CREATE TABLE IF NOT EXISTS weekstoobjectivies (
   FOREIGN KEY(weekid) REFERENCES weeks(weekid) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS users (
+  userid INT PRIMARY KEY AUTO_INCREMENT,
+  googletoken VARCHAR(50),
+  username VARCHAR(200),
+  gmail VARCHAR(300)
+);
+
+CREATE TABLE IF NOT EXISTS usersunitlink (
+  unitlinkid INT PRIMARY KEY AUTO_INCREMENT,
+  userid INT NOT NULL,
+  unitid INT NOT NULL,
+  FOREIGN KEY(unitid) REFERENCES units(unitid) ON DELETE CASCADE,
+  FOREIGN KEY(userid) REFERENCES users(userid) ON DELETE CASCADE
+);
 
 INSERT INTO units VALUES (1 ,"WEBSCRP", "Web Script", "110900211868756842381");
 INSERT INTO units VALUES (2 ,"WEBF1", "Web foundations 1", "110900211868756842381");

@@ -2,22 +2,64 @@
 
 window.addEventListener('load', initialize);
 
+/**
+ * Gloabl variables
+ * @param {int} currentUnit - The unit that has been selected
+ * @param {int} currentWeek - The Week that has been selected
+ * @param {bool} isSelected - If a week is currently highlighted
+ * @param {bool} beingDeleted - Check if a week is being deleted
+ */
 let currentUnit;
 let currentWeek;
 let isSelected = false;
 let beingDeleted = false;
 
-
+//On loading the page show the login form
 function initialize() {
   showLogin();
 }
 
+/** showLogin loads the login form */
 function showLogin() {
   const loginPage = document.getElementById("login-page").content.cloneNode(true);
   document.getElementById('contentHolder').innerHTML='';
   document.getElementById('contentHolder').appendChild(loginPage);
 }
 
+/** onSignIn is used when the sign in button is clicked */
+async function onSignIn(googleUser) {
+  let profile = googleUser.getBasicProfile();
+  let name = profile.getName();
+  let email = profile.getEmail();
+  //Check if user exsists and save users data for share functionality
+  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+  const fetchOptions = {
+    method: 'GET',
+    headers: {'Authorization': 'Bearer ' + token}
+  };
+
+  let url = '/data/users/';
+  url += '?email=' + email;
+  url += '&name=' + name;
+
+  const response = await fetch(url, fetchOptions);
+  if (!response.ok) {
+    console.log(response.status);
+    return;
+  }
+  showMain();
+}
+
+/** onSignIn log a user out */
+function signOut() {
+  var auth2 = gapi.auth2.getAuthInstance();
+  auth2.signOut().then(function () {
+    console.log('User signed out.');
+    showLogin();
+  });
+}
+
+/** showMain is used when a user has logged in, loads the main view */
 function showMain() {
   const mainPage = document.getElementById("main-page").content.cloneNode(true);
   document.getElementById('contentHolder').innerHTML='';
@@ -30,20 +72,9 @@ function showMain() {
   requestUnits();
 }
 
-function onSignIn(googleUser) {
-  showMain();
-}
+//Unit Functions
 
-function signOut() {
-  var auth2 = gapi.auth2.getAuthInstance();
-  auth2.signOut().then(function () {
-    console.log('User signed out.');
-    showLogin();
-  });
-}
-
-
-//Display units
+/** requestUnits used to get all of a users units */
 async function requestUnits() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -57,6 +88,7 @@ async function requestUnits() {
     return;
   }
 
+  //returns the list of units
   const data = await response.json();
   const cardTemplateEl = document.getElementById('card-holder');
   cardTemplateEl.innerHTML='';
@@ -64,6 +96,7 @@ async function requestUnits() {
     cardTemplateEl.innerHTML='No Units added yet';
     return;
   }
+
   data.forEach((unit) => {
     const unitTemplateEl = document.getElementById('unit-card').content.cloneNode(true);
     unitTemplateEl.querySelector('.title').textContent = unit.unitname || 'No Title';
@@ -82,25 +115,31 @@ async function requestUnits() {
   });
 }
 
-//Add units
+/** addUnit used to load the pop up box to input a unit */
 function addUnit() {
   document.getElementById('add_unit_popup').style.display = "block";
   document.getElementById('submit-button').addEventListener('click', submitUnit);
   document.addEventListener('click', closePopUps);
 }
 
+/** closepopup used to close pop up boxes */
 function closepopup() {
   document.getElementById('add_unit_popup').style.display = "none";
   document.getElementById('edit_unit_popup').style.display = "none";
   document.removeEventListener('click', closePopUps);
 }
 
+/**
+ * closePopUps is added when a popup us open
+ * closes the pop up if clicked outside the pop up area
+ */
 function closePopUps() {
   if (event.target == document.getElementById('add_unit_popup') || event.target == document.getElementById('edit_unit_popup')) {
     closepopup();
   }
 }
 
+/** submitUnit used to save a unit to the database */
 async function submitUnit() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -134,7 +173,10 @@ async function submitUnit() {
   requestUnits();
 }
 
-//Edit function
+/**
+ * editUnit used to get the unit info to a edit pop up box and add event listiners
+ * @param {event} e the element that was clicked
+ */
 async function editUnit(e) {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -147,12 +189,13 @@ async function editUnit(e) {
   document.getElementById('error-appender-edit').innerHTML='';
   document.getElementById('save-button').addEventListener('click', saveUnit);
   document.getElementById('delete-unit-button').addEventListener('click', deleteUnit);
+  document.getElementById('share-button').addEventListener('click', shareUnit);
 
   const el = getWrapper(e.target);
   currentUnit = el.dataset.id;
 
   let url = '/data/units/single/';
-  url += '?unitid=' + currentUnit;
+  url += '?unitid=' + encodeURIComponent(currentUnit);
 
   const response = await fetch(url, fetchOptions);
   if (!response.ok) {
@@ -165,9 +208,69 @@ async function editUnit(e) {
     document.getElementById('title-unit-input').value = unit.unitname;
     document.getElementById('full-title-unit-input').value = unit.unitfullname;
   });
+
+  getSharedUsers();
+
   document.addEventListener('click', closePopUps);
 }
 
+/** getSharedUsers used to get any users a unit has been shared with */
+async function getSharedUsers() {
+  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+  const fetchOptions = {
+    method: 'GET',
+    headers: {'Authorization': 'Bearer ' + token}
+  };
+
+  let url = '/data/units/share';
+  url += '?unitid=' + encodeURIComponent(currentUnit);
+
+  const response = await fetch(url, fetchOptions);
+  if (!response.ok) {
+    console.log(response.status);
+    return;
+  }
+
+  const data = await response.json();
+  let shareHolderEl = document.getElementById('share-appender');
+  shareHolderEl.innerHTML='';
+
+  if (data.length > 0) {
+    shareHolderEl.innerHTML='<h3>Shared with<h3>';
+    data.forEach((user) => {
+      const userTemplateEl = document.getElementById('shared-users').content.cloneNode(true);
+      userTemplateEl.querySelector('.user-name').textContent = user.username;
+      shareHolderEl.appendChild(userTemplateEl);
+    });
+  }
+}
+
+/** shareUnit save another user to a unit */
+async function shareUnit() {
+  const emailEl = document.getElementById('share-input');
+  if (!emailEl.checkValidity()) {
+    document.getElementById('error-appender-add').innerHTML+='<p>Invalid email, this field must not be blank.</p>';
+    return;
+  }
+
+  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+  const fetchOptions = {
+    method: 'POST',
+    headers: {'Authorization': 'Bearer ' + token}
+  };
+
+  let url = '/data/units/share/';
+  url += '?email=' + encodeURIComponent(emailEl.value);
+  url += '&unitid=' + encodeURIComponent(currentUnit);
+
+  const response = await fetch(url, fetchOptions);
+  if (!response.ok) {
+    console.log(response.status);
+    return;
+  }
+}
+
+/** saveUnit updates the title and shortcode when editing */
 async function saveUnit() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -204,6 +307,7 @@ async function saveUnit() {
   getUnitFullName();
 }
 
+/** deleteUnit adds 2 extra buttons to the edit popup to confrim or cancel the delete */
 async function deleteUnit() {
   const errorAppender = document.getElementById('error-appender-edit');
   document.getElementById('error-appender-edit').innerHTML='';
@@ -213,6 +317,7 @@ async function deleteUnit() {
   document.getElementById('confirm-delete').addEventListener('click', confimredDelete);
 }
 
+/** confimredDelete removes a unit from the database */
 async function confimredDelete() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -233,6 +338,13 @@ async function confimredDelete() {
   requestUnits();
 }
 
+//Wrapper helper functions
+
+/**
+ * getWrapper finds the unit wrapper when clicked within a unit element
+ * @param {element} el the element being clicked
+ * @return {element} el the parent element
+ */
 function getWrapper(el) {
   while (!el.classList.contains('unit') )  {
     el = el.parentElement;
@@ -240,6 +352,11 @@ function getWrapper(el) {
   return el;
 }
 
+/**
+ * getWeekWrapper finds the week wrapper when clicked within a week element
+ * @param {element} el the element being clicked
+ * @return {element} el the parent element
+ */
 function getWeekWrapper(el) {
   while (!el.classList.contains('week') )  {
     el = el.parentElement;
@@ -247,6 +364,11 @@ function getWeekWrapper(el) {
   return el;
 }
 
+/**
+ * getObjWrapper finds the objective wrapper when clicked within a objective element
+ * @param {element} el the element being clicked
+ * @return {element} el the parent element
+ */
 function getObjWrapper(el) {
   while (!el.classList.contains('objective') )  {
     el = el.parentElement;
@@ -254,10 +376,15 @@ function getObjWrapper(el) {
   return el;
 }
 
+/**
+ * displayUnitInfo calls functions to show weeks and objectives when a unit is clicked
+ * @param {event} e the element being clicked
+ */
 async function displayUnitInfo(e) {
   const el = getWrapper(e.target);
   currentUnit = el.dataset.id;
   document.getElementById('main-content').classList.remove("hidden");
+  //hide a week content if clicking another unit
   blankWeekContent();
   getUnitFullName();
   document.getElementById('add-obj').addEventListener('click', addObject);
@@ -270,26 +397,7 @@ async function displayUnitInfo(e) {
   displayObjectives();
 }
 
-async function displayWeeks() {
-  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
-  const fetchOptions = {
-    method: 'GET',
-    headers: {'Authorization': 'Bearer ' + token}
-  };
-
-  let url = '/data/weeks';
-  url += '?unitid=' + currentUnit;
-
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok) {
-    console.log(response.status);
-    return;
-  }
-
-  const data = await response.json();
-  displaySelectedWeeks(data);
-}
-
+/** getUnitFullName gets the full name of a unit */
 async function getUnitFullName() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -314,17 +422,43 @@ async function getUnitFullName() {
   document.getElementById('unit-titles').textContent = data.unitfullname;
 }
 
+// Week Functions
+
+/** displayWeeks finds all the weeks on a unit and passes that list to displaySelectedWeeks */
+async function displayWeeks() {
+  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+  const fetchOptions = {
+    method: 'GET',
+    headers: {'Authorization': 'Bearer ' + token}
+  };
+
+  let url = '/data/weeks';
+  url += '?unitid=' + currentUnit;
+
+  const response = await fetch(url, fetchOptions);
+  if (!response.ok) {
+    console.log(response.status);
+    return;
+  }
+
+  const data = await response.json();
+  displaySelectedWeeks(data);
+}
+
+/** addWeek shows a input box and button for adding a week */
 async function addWeek() {
   document.getElementById('add-a-week').classList.remove('hidden');
   document.getElementById('save-week-button').addEventListener('click', saveWeek);
   document.getElementById('cancel-week-button').addEventListener('click', cancelWeek);
 }
 
+/** addWeek removes the div */
 function cancelWeek() {
   document.getElementById('add-week-form').reset();
   document.getElementById('add-a-week').classList.add('hidden');
 }
 
+/** saveWeek saves the week to the database */
 async function saveWeek() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -354,7 +488,38 @@ async function saveWeek() {
   displayWeeks();
 }
 
+/**
+ * removeWeek deletes a week from the database
+ * @param {event} event the element being clicked
+ */
+async function removeWeek(event) {
+  beingDeleted = true;
+  const el = getWeekWrapper(event.target);
+  const weekid = el.dataset.weekid;
+  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
+  const fetchOptions = {
+    method: 'DELETE',
+    headers: {'Authorization': 'Bearer ' + token}
+  };
+
+  let url = '/data/weeks/';
+  url += '?weekid=' + encodeURIComponent(weekid);
+  url += '&unitid=' + encodeURIComponent(currentUnit);
+
+  const response = await fetch(url, fetchOptions);
+  if (!response.ok) {
+    console.log(response.status);
+    return;
+  }
+  removeFilters();
+  displayWeeks();
+}
+
+// Week Content Functions
+
+/** displayWeekInfo shows all topics notes and resources of a week */
 async function displayWeekInfo() {
+  //check if its being deleted before running
   if (!beingDeleted) {
     isSelected = true;
     const weekContentHolderEl = document.getElementById('weeks-content-holder');
@@ -393,6 +558,7 @@ async function displayWeekInfo() {
     document.getElementById('add-resource').addEventListener('click', function() {addResource(resources);});
     document.getElementById('notes-text-area').value = data.notes;
 
+    //add all topics from the topic array
     const topicHolder = document.getElementById('topic-holder');
     topicHolder.innerHTML = "";
     if (topics != null) {
@@ -407,13 +573,15 @@ async function displayWeekInfo() {
 
     //https://stackoverflow.com/questions/5717093/check-if-a-javascript-string-is-a-url?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
     //Source of regEx url checking code
-    let pattern = new RegExp('^(https?:\\/\\/)?'+ '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ '((\\d{1,3}\\.){3}\\d{1,3}))'+ '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ '(\\?[;&a-z\d%_.~+=-]*)?'+ '(\\#[-a-z\d_]*)?$','i');
+    const pattern = new RegExp('^(https?:\\/\\/)?'+ '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ '((\\d{1,3}\\.){3}\\d{1,3}))'+ '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ '(\\?[;&a-z\d%_.~+=-]*)?'+ '(\\#[-a-z\d_]*)?$','i');
 
+    //add all resources from the topic array
     const resourceHolder = document.getElementById('resource-holder');
     resourceHolder.innerHTML = "";
     if (resources != null) {
       resources.forEach((resource) => {
         let linkedResource = resource;
+        //check if a resource is a link
         if (pattern.test(resource)) {
           linkedResource = "<a href=\"" + resource + "\">" + resource + "</a>";
         }
@@ -429,6 +597,7 @@ async function displayWeekInfo() {
   beingDeleted = false;
 }
 
+/** saveNotes updates the database with the notes textarea */
 async function saveNotes() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -458,16 +627,26 @@ async function saveNotes() {
   }, 1000);
 }
 
+/**
+ * addTopic shows the div for adding a topic
+ * @param {array} topicArr a array of all the topics for a week
+ */
 function addTopic(topicArr) {
   document.getElementById('add-a-topic').classList.remove('hidden');
   document.getElementById('save-topic-button').addEventListener('click', function() {saveTopic(topicArr);});
   document.getElementById('cancel-topic-button').addEventListener('click', cancelTopic);
 }
 
+/** cancelTopic hides the dive for adding a topic */
 function cancelTopic() {
   document.getElementById('add-topic-form').reset();
   document.getElementById('add-a-topic').classList.add('hidden');
 }
+
+/**
+ * saveTopic adds a topic to a array and then saves that array to the database
+ * @param {array} topicArr a array of all the topics for a week
+ */
 
 async function saveTopic(topicArr) {
   let newTopicArr = topicArr;
@@ -482,6 +661,7 @@ async function saveTopic(topicArr) {
     return;
   }
 
+  //Array is converted so it can be saved to the database as a string
   newTopicArr.push(topicTitleEl.value);
   newTopicArr = JSON.stringify(newTopicArr);
 
@@ -500,17 +680,26 @@ async function saveTopic(topicArr) {
   displayWeekInfo();
 }
 
+/**
+ * addResource shows the input div form to add a resource
+ * @param {array} resourceArr a array of all the resources for a week
+ */
 function addResource(resourceArr) {
   document.getElementById('add-a-resource').classList.remove('hidden');
   document.getElementById('save-resource-button').addEventListener('click', function() {saveResource(resourceArr);});
   document.getElementById('cancel-resource-button').addEventListener('click', cancelResource);
 }
 
+/** cancelResource hides the input div form to add a resource */
 function cancelResource() {
   document.getElementById('add-resource-form').reset();
   document.getElementById('add-a-resource').classList.add('hidden');
 }
 
+/**
+ * saveResource adds the new resource to the database by converting an array
+ * @param {array} resourceArr a array of all the resources for a week
+ */
 async function saveResource(resourceArr) {
   let newResourceArr = resourceArr;
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
@@ -542,6 +731,9 @@ async function saveResource(resourceArr) {
   displayWeekInfo();
 }
 
+//Objective functions
+
+/** displayObjectives adds all objectives for a unit to the page */
 async function displayObjectives() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -588,6 +780,7 @@ async function displayObjectives() {
   });
 }
 
+/** removeObj deletes an objective */
 async function removeObj() {
   const el = getObjWrapper(event.target);
   const objid = el.dataset.objid;
@@ -609,6 +802,7 @@ async function removeObj() {
   displayObjectives();
 }
 
+/** addObject shows the form for adding an objective */
 async function addObject() {
   removeFilters();
   document.getElementById('add-a-objective').classList.remove('hidden');
@@ -616,11 +810,13 @@ async function addObject() {
   document.getElementById('cancel-obj-button').addEventListener('click', cancelObject);
 }
 
+/** cancelObject hides the form for adding an objective */
 function cancelObject() {
   document.getElementById('add-objective-form').reset();
   document.getElementById('add-a-objective').classList.add('hidden');
 }
 
+/** saveObject saves and objecitve to the database */
 async function saveObject() {
   const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
   const fetchOptions = {
@@ -648,14 +844,17 @@ async function saveObject() {
   displayObjectives();
 }
 
+/** initDrag start of dragging and objective to transfer its id */
 function initDrag(event) {
   event.dataTransfer.setData("text", event.target.dataset.objid);
 }
 
+/** allowDrop lets the objective be dropped */
 function allowDrop(e) {
     e.preventDefault();
 }
 
+/** saveObjLink saves a link between an objective and a week that the objective was dropped on*/
 async function saveObjLink(event) {
   const el = getWeekWrapper(event.target);
   const weekid = el.dataset.weekid;
@@ -680,6 +879,7 @@ async function saveObjLink(event) {
   showDependencies();
 }
 
+/** showDependencies highlights all the objectives a week has been asigned */
 async function showDependencies() {
   if (isSelected && !beingDeleted) {
     const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
@@ -688,7 +888,7 @@ async function showDependencies() {
       headers: {'Authorization': 'Bearer ' + token}
     };
 
-    let url = '/api/links';
+    let url = '/data/links';
     url += '?weekid=' + currentWeek;
 
     const response = await fetch(url, fetchOptions);
@@ -719,6 +919,7 @@ async function showDependencies() {
   beingDeleted = false;
 }
 
+/** removeWeekObjLink deletes a link between an objective and a week */
 async function removeWeekObjLink(event) {
   const el = getObjWrapper(event.target);
   const objid = el.dataset.objid;
@@ -740,6 +941,7 @@ async function removeWeekObjLink(event) {
   displayWeekInfo();
 }
 
+/** displayGroupWeeks shows all weeks that are assigned to an objective */
 async function displayGroupWeeks(event) {
   cancelObject();
   isSelected = false;
@@ -773,6 +975,10 @@ async function displayGroupWeeks(event) {
   displaySelectedWeeks(data);
 }
 
+/**
+ * displaySelectedWeeks adds all weeks the page that were passed in data
+ * @param {object} data all of the weeks passed by other functions
+ */
 function displaySelectedWeeks(data) {
   const weekHolderEl = document.getElementById('week-holder');
   weekHolderEl.innerHTML='';
@@ -801,30 +1007,9 @@ function displaySelectedWeeks(data) {
   });
 }
 
-async function removeWeek(event) {
-  beingDeleted = true;
-  const el = getWeekWrapper(event.target);
-  const weekid = el.dataset.weekid;
-  const token = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().id_token;
-  const fetchOptions = {
-    method: 'DELETE',
-    headers: {'Authorization': 'Bearer ' + token}
-  };
-
-  let url = '/data/weeks/';
-  url += '?weekid=' + encodeURIComponent(weekid);
-  url += '&unitid=' + encodeURIComponent(currentUnit);
-
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok) {
-    console.log(response.status);
-    return;
-  }
-  removeFilters();
-  displayWeeks();
-}
-
 //Helper functions
+
+/** removeObjectiveHighlight is a helper function to remove all objective highlights */
 function removeObjectiveHighlight() {
   let objectives = document.querySelectorAll('.objective');
   objectives.forEach((obj) => {
@@ -833,6 +1018,7 @@ function removeObjectiveHighlight() {
   });
 }
 
+/** removeFilters is to remove any objectives being selected and showing assosicted weeks */
 function removeFilters() {
   isSelected = false;
   blankWeekContent();
@@ -841,6 +1027,7 @@ function removeFilters() {
   displayWeeks();
 }
 
+/** blankWeekContent removes the week content template */
 function blankWeekContent() {
   const weekContentHolderEl = document.getElementById('weeks-content-holder');
   weekContentHolderEl.innerHTML = "";

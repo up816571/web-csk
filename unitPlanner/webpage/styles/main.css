@@ -21,6 +21,14 @@ body {
   color: var(--text-col);
 }
 
+a {
+  color: var(--green-col);
+}
+
+a:hover {
+  color: var(--light-grey);
+}
+
 /* Login */
 
 #login-box {
@@ -113,7 +121,8 @@ header {
   cursor: pointer;
 }
 
-.unit {
+.unit, .objective, .week, #remove-obj-filter, #add-obj, #add-week,
+#add-topic, #add-resource, button {
   cursor: pointer;
 }
 
@@ -176,6 +185,14 @@ header {
   font-size: 0.6em;
 }
 
+.pop_up_content h3 {
+  font-size: 0.8em;
+}
+
+.pop_up_content h4 {
+  font-size: 0.6em;
+}
+
 .close_pop_up {
   color: black;
   float: right;
@@ -200,9 +217,21 @@ header {
   display: inline-block;
   font-size: 1em;
   font-weight: bold;
-  padding: 0.2em;
   cursor: pointer;
 }
+
+ #share-button {
+   background-color: var(--green-col);
+   color: var(--text-col);
+   border: none;
+   padding: 0.2em;
+   margin-top: 0.2em;
+   border-radius: 2px;
+   display: inline-block;
+   font-size: 0.8em;
+   font-weight: bold;
+   cursor: pointer;
+ }
 
 #delete-unit-button {
   float: right;
