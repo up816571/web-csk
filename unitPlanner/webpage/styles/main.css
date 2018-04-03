@@ -418,3 +418,21 @@ section > h3, section > span, #weeks-content-holder {
 .hidden {
   display: none !important;
 }
+
+@media (max-width: 700px) {
+    #week-display, #topic-display, #notes-display, #resources-display {
+      width: 48%;
+    }
+}
+
+@media (max-width: 535px) {
+    #week-display, #topic-display, #notes-display, #resources-display {
+      width: 90%;
+    }
+}
+
+@media (max-width: 390px) {
+    #center-nav h1 {
+      margin-top: 0.5em;
+    }
+}
